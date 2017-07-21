@@ -3,7 +3,8 @@
 
 	OCA.SpreedMe = OCA.SpreedMe || {};
 
-	function SignalingBase() {
+	function SignalingBase(settings) {
+		this.settings = settings;
 		this.sessionId = '';
 		this.currentCallToken = null;
 		this.handlers = {};
@@ -90,7 +91,7 @@
 	};
 
 	// Connection to the internal signaling server provided by the app.
-	function InternalSignaling() {
+	function InternalSignaling(/*settings*/) {
 		SignalingBase.prototype.constructor.apply(this, arguments);
 		this.spreedArrayConnection = [];
 
@@ -406,7 +407,7 @@
 		}.bind(this));
 	};
 
-	function StandaloneSignaling(url) {
+	function StandaloneSignaling(settings, url) {
 		SignalingBase.prototype.constructor.apply(this, arguments);
 		// Make sure we are using websocket urls.
 		if (url.indexOf("https://") === 0) {
@@ -576,7 +577,6 @@
 		} else {
 			var user = OC.getCurrentUser();
 			var url = OC.generateUrl("/apps/spreed/signalling/backend");
-			var ticket = $("#app").attr("data-signalingticket");
 			msg = {
 				"type": "hello",
 				"hello": {
@@ -585,7 +585,7 @@
 						"url": OC.getProtocol() + "://" + OC.getHost() + url,
 						"params": {
 							"userid": user.uid,
-							"ticket": ticket,
+							"ticket": this.settings.ticket
 						}
 					}
 				}
@@ -728,11 +728,17 @@
 	};
 
 	OCA.SpreedMe.createSignalingConnection = function() {
-		var url = $("#app").attr("data-signalingserver");
-		if (url)  {
-			return new StandaloneSignaling(url);
+		var settings = $("#app #signaling-settings").text();
+		if (settings) {
+			settings = JSON.parse(settings);
 		} else {
-			return new InternalSignaling();
+			settings = {};
+		}
+		var url = settings['server'];
+		if (url)  {
+			return new StandaloneSignaling(settings, url);
+		} else {
+			return new InternalSignaling(settings);
 		}
 	};
 
