@@ -568,13 +568,13 @@
 
 	StandaloneSignaling.prototype.sendHello = function() {
 		var msg;
-		if (this.sessionId) {
+		if (this.resumeId) {
 			console.log("Trying to resume session", this.sessionId);
 			msg = {
 				"type": "hello",
 				"hello": {
 					"version": "1.0",
-					"sessionid": this.sessionId
+					"resumeid": this.resumeId
 				}
 			};
 		} else {
@@ -600,9 +600,9 @@
 	StandaloneSignaling.prototype.helloResponseReceived = function(data) {
 		console.log("Hello response received", data);
 		if (data.type !== "hello") {
-			if (this.sessionId) {
+			if (this.resumeId) {
 				// Resuming the session failed, reconnect as new session.
-				this.sessionId = '';
+				this.resumeId = '';
 				this.sendHello();
 				return;
 			}
@@ -613,9 +613,10 @@
 			return;
 		}
 
-		var resumedSession = !!this.sessionId;
+		var resumedSession = !!this.resumeId;
 		this.connected = true;
 		this.sessionId = data.hello.sessionid;
+		this.resumeId = data.hello.resumeid;
 
 		var messages = this.pendingMessages;
 		this.pendingMessages = [];
