@@ -62,6 +62,8 @@
 		},
 
 		receiveMessages: function() {
+			this.receiveMessagesAgain = true;
+
 			this.fetch({
 				data: {
 					// The notOlderThan parameter could be used to limit the
@@ -84,14 +86,22 @@
 			});
 		},
 
+		stopReceivingMessages: function() {
+			this.receiveMessagesAgain = false;
+		},
+
 		_successfulFetch: function(collection, response, options) {
 			this.offset += response.ocs.data.length;
 
-			this.receiveMessages();
+			if (this.receiveMessagesAgain) {
+				this.receiveMessages();
+			}
 		},
 
 		_failedFetch: function() {
-			this.receiveMessages();
+			if (this.receiveMessagesAgain) {
+				this.receiveMessages();
+			}
 		}
 	});
 
