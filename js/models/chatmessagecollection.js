@@ -36,6 +36,8 @@
 			this.token = options.token;
 
 			this.url = OC.linkToOCS('apps/spreed/api/v1', 2) + 'chat/' + this.token;
+
+			this.offset = 0;
 		},
 
 		comparator: function(model) {
@@ -60,7 +62,36 @@
 		},
 
 		receiveMessages: function() {
-			this.fetch({remove: false, success: _.bind(this.receiveMessages, this), error: _.bind(this.receiveMessages, this)});
+			this.fetch({
+				data: {
+					// The notOlderThan parameter could be used to limit the
+					// messages to those shown since the user opened the chat
+					// window. However, it can not be used as a way to keep
+					// track of the last message received. For example, even if
+					// unlikely, if two messages were sent at the same time and
+					// received the same timestamp in two different PHP
+					// processes, it could happen that one of them was committed
+					// to the database and read by another process waiting for
+					// new messages while the second message was not committed
+					// yet and thus not returned. Then, when the reading process
+					// checks the messages again, it would miss the second one
+					// due to its timestamp being the same as the last one it
+					// received.
+					offset: this.offset
+				},
+				success: _.bind(this._successfulFetch, this),
+				error: _.bind(this._failedFetch, this)
+			});
+		},
+
+		_successfulFetch: function(collection, response, options) {
+			this.offset += response.ocs.data.length;
+
+			this.receiveMessages();
+		},
+
+		_failedFetch: function() {
+			this.receiveMessages();
 		}
 	});
 
