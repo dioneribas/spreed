@@ -46,6 +46,19 @@
 			return result.ocs.data;
 		},
 
+		set: function(models, options) {
+			// TODO Provide the models already sorted to set, as even if setting
+			// 'sort: true' in the options the 'add' events are sent in the
+			// original order of models passed to set.
+			if (models !== undefined && models !== null && models.ocs !== undefined && models.ocs.data !== undefined) {
+				models.ocs.data = _.sortBy(models.ocs.data, function(model) {
+					return model.timestamp;
+				});
+			}
+
+			return Backbone.Collection.prototype.set.call(this, models, options);
+		},
+
 		receiveMessages: function() {
 			this.fetch({remove: false, success: _.bind(this.receiveMessages, this), error: _.bind(this.receiveMessages, this)});
 		}
