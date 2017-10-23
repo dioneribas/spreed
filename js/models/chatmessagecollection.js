@@ -33,13 +33,27 @@
 				throw 'Missing parameter token';
 			}
 
-			this.token = options.token;
+			this._lastFetch = null;
 
-			this.url = OC.linkToOCS('apps/spreed/api/v1', 2) + 'chat/' + this.token;
+			this.setRoomToken(options.token);
+		},
+
+		setRoomToken: function(token) {
+			this.stopReceivingMessages();
+
+			this.token = token;
 
 			this.offset = 0;
 
 			this._waitTimeUntilRetry = 1;
+
+			if (token !== null) {
+				this.url = OC.linkToOCS('apps/spreed/api/v1', 2) + 'chat/' + token;
+			} else {
+				this.url = null;
+			}
+
+			this.reset();
 		},
 
 		comparator: function(model) {
@@ -66,7 +80,7 @@
 		receiveMessages: function() {
 			this.receiveMessagesAgain = true;
 
-			this.fetch({
+			this._lastFetch = this.fetch({
 				data: {
 					// The notOlderThan parameter could be used to limit the
 					// messages to those shown since the user opened the chat
@@ -90,10 +104,16 @@
 
 		stopReceivingMessages: function() {
 			this.receiveMessagesAgain = false;
+
+			if (this._lastFetch !== null) {
+				this._lastFetch.abort();
+			}
 		},
 
 		_successfulFetch: function(collection, response, options) {
 			this.offset += response.ocs.data.length;
+
+			this._lastFetch = null;
 
 			this._waitTimeUntilRetry = 1;
 
@@ -103,6 +123,8 @@
 		},
 
 		_failedFetch: function() {
+			this._lastFetch = null;
+
 			if (this.receiveMessagesAgain) {
 				_.delay(_.bind(this.receiveMessages, this), this._waitTimeUntilRetry * 1000);
 
