@@ -25,6 +25,7 @@
 
 namespace OCA\Spreed\Controller;
 
+use OCA\Spreed\Exceptions\InvalidPasswordException;
 use OCA\Spreed\Exceptions\ParticipantNotFoundException;
 use OCA\Spreed\Exceptions\RoomNotFoundException;
 use OCA\Spreed\Manager;
@@ -763,6 +764,73 @@ class RoomController extends OCSController {
 		}
 
 		$room->setPassword($password);
+		return new DataResponse();
+	}
+
+	/**
+	 * @PublicPage
+	 * @UseSession
+	 *
+	 * @param string $token
+	 * @param string $password
+	 * @return DataResponse
+	 */
+	public function joinRoom($token, $password) {
+		try {
+			$room = $this->manager->getRoomForParticipantByToken($token, $this->userId);
+		} catch (RoomNotFoundException $e) {
+			return new DataResponse([], Http::STATUS_NOT_FOUND);
+		}
+
+		try {
+			if ($this->userId !== null) {
+//				$sessionIds = $this->manager->getSessionIdsForUser($this->userId);
+				$newSessionId = $room->enterRoomAsUser($this->userId, $password, $this->session->get('spreed-password') === $room->getToken());
+
+//				if (!empty($sessionIds)) {
+//					$this->messages->deleteMessages($sessionIds);
+//				}
+			} else {
+				$newSessionId = $room->enterRoomAsGuest($password, $this->session->get('spreed-password') === $room->getToken());
+			}
+		} catch (InvalidPasswordException $e) {
+			return new DataResponse([], Http::STATUS_FORBIDDEN);
+		}
+
+		$this->session->remove('spreed-password');
+		$this->session->set('spreed-session', $newSessionId);
+		$room->ping($this->userId, $newSessionId, time());
+
+		return new DataResponse([
+			'sessionId' => $newSessionId,
+		]);
+	}
+
+	/**
+	 * @PublicPage
+	 * @UseSession
+	 *
+	 * @param string $token
+	 * @return DataResponse
+	 */
+	public function leaveRoom($token) {
+		$sessionId = $this->session->get('spreed-session');
+		$this->session->remove('spreed-session');
+
+		try {
+			$room = $this->manager->getRoomForParticipantByToken($token, $this->userId);
+
+			if ($this->userId === null) {
+				$participant = $room->getParticipantBySession($sessionId);
+				$room->removeParticipantBySession($participant);
+			} else {
+				$participant = $room->getParticipant($this->userId);
+				$room->disconnectUserFromAllRooms($participant->getUser());
+			}
+		} catch (RoomNotFoundException $e) {
+		} catch (ParticipantNotFoundException $e) {
+		}
+
 		return new DataResponse();
 	}
 
